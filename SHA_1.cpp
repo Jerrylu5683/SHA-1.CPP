@@ -194,3 +194,71 @@ int SHA1Context::SHA1(uint8_t *message, uint32_t length, uint8_t output[SHA1Hash
         output[i] = H[i>>2] >> 8 * ( 3 - ( i & 0x03 ) );
 	return shaSuccess;
 }
+
+///
+//Description:
+//    the interface of the HMAC-SHA1 method
+//Parameters:
+//	  text: the HMAC source data
+//    textLength: length of the text
+//    key: key to encript the text
+//    keyLength: the length of the key
+//    output: where the outcome stored
+//Returns:
+//    SHA-1 error code
+///
+int SHA1Context::HMAC_SHA1(uint8_t *text, uint32_t textLength, uint8_t *key, uint32_t keyLength, uint8_t output[SHA1HashSize])
+{
+	if(text == 0 || textLength < 0 || key == 0 || keyLength < 0)
+		return shaParamError;
+	uint8_t k_ipad[SHA1BlockSize];		//key xor ipad
+	uint8_t k_opad[SHA1BlockSize];		//key xor opad
+	uint8_t keyHashed[SHA1HashSize];	//store the hashed key
+	
+	//hash the key if the length > SHA1BlockSize(64)
+	if(keyLength > SHA1BlockSize)
+	{
+		SHA1(key, keyLength, keyHashed);
+		//memcpy(key, keyHashed, SHA1HashSize);
+		key = keyHashed;
+		keyLength = SHA1HashSize;
+	}
+
+	//the memory stores the k_ipad and text
+	uint8_t *k_ipadAppendWithText = new uint8_t[SHA1BlockSize+textLength];
+	//the memory stores the k_opad and H(k_ipad, text)
+	uint8_t *k_opadAppendWithHash = new uint8_t[SHA1BlockSize+SHA1HashSize];
+
+	for(int i = 0; i < SHA1BlockSize; i++)
+	{
+		//init ipad and opad
+		if(i < keyLength)
+		{
+			k_ipad[i] = key[i];
+			k_opad[i] = key[i];
+		}
+		else
+		{
+			k_ipad[i] = 0x00;
+			k_opad[i] = 0x00;
+		}
+		//calculate key XOR ipad, key XOR opad
+		k_ipad[i] ^= 0x36;
+        k_opad[i] ^= 0x5C;
+		//put into the front of memory for Hash
+		k_ipadAppendWithText[i] = k_ipad[i];
+		k_opadAppendWithHash[i] = k_opad[i];
+	}
+
+	//append the text to k_ipad from position SHA1BlockSize
+	strncpy((char *)k_ipadAppendWithText+SHA1BlockSize, (char *)text, textLength);
+	SHA1(k_ipadAppendWithText, SHA1BlockSize+textLength, output);
+
+	//apend the hash value to k_opad from position SHA1HashSize
+	strncpy((char *)k_opadAppendWithHash+SHA1BlockSize, (char *)output, SHA1HashSize);
+	SHA1(k_opadAppendWithHash, SHA1BlockSize+SHA1HashSize, output);
+
+	delete[] k_ipadAppendWithText;
+	delete[] k_opadAppendWithHash;
+	return shaSuccess;
+}

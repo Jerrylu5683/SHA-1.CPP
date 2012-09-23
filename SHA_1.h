@@ -28,4 +28,5 @@ public:
 	SHA1Context();	//constructor
 	~SHA1Context();	//destructor
 	int SHA1(uint8_t *message, uint32_t length, uint8_t output[SHA1HashSize]);	//the interface of the SHA1 method
+	int HMAC_SHA1(uint8_t *text, uint32_t textLength, uint8_t *key, uint32_t keyLength, uint8_t output[SHA1HashSize]); //HMAC use the hash method sha1
 };
